@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
-from models import User, PDFFile
+from database.models import User, PDFFile
 from fastapi import Depends,HTTPException,status
 from database.database import get_db
 from datetime import timedelta
-from auth import get_password_hash, verify_password, create_access_token,ACCESS_TOKEN_EXPIRE_MINUTES,get_user,generate_unique_id,get_current_user
+from services.auth import get_password_hash, verify_password, create_access_token,ACCESS_TOKEN_EXPIRE_MINUTES,get_user,generate_unique_id,get_current_user
 
 #user services
 

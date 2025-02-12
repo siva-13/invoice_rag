@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from database.database import SessionLocal, get_db
 from fastapi import BackgroundTasks, Depends, HTTPException,status
 from main import PDF_IMAGE_DIR, QueryRequest, generate_sql_query,client, synthesize_response
-from models import PDFFile, User
-from models import InvoiceDB, InvoiceItemDB, ProcessingStatus
+from database.models import PDFFile, User
+from database.models import InvoiceDB, InvoiceItemDB, ProcessingStatus
 from services.image_services import process_single_image, format_processing_job
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession

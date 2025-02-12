@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+psycopg2-binary
+passlib[bcrypt]
+python-jose
+pdf2image
+torch
+torchvision
+pillow
+pydantic
+numpy
+openai

@@ -1,11 +1,11 @@
-from jose import JWTError,jwt
-from passlib.context import CryptContext
+from jose import JWTError,jwt # type: ignore
+from passlib.context import CryptContext # type: ignore
 from datetime import datetime,timedelta
 from typing import Optional
 import uuid
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from models import User
+from database.models import User
 from fastapi import Depends,HTTPException,status
 from database.database import get_db
 
@@ -63,3 +63,5 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
     return user
+
+
