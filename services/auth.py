@@ -1,35 +1,24 @@
-from jose import JWTError,jwt
-from passlib.context import CryptContext
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 from typing import Optional
-import uuid
-from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from models import User
-from fastapi import Depends,HTTPException,status
 from database.database import get_db
+from database.models import User
 
-# JWT Settings
-SECRET_KEY = "your-secret-key-here"  # In production, use a secure secret key
+SECRET_KEY = "your-secret-key-here"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 100
 
-# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# OAuth2 setup with JWT
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-# Helper functions
-def generate_unique_id():
-    """Generate a unique ID based on timestamp and UUID"""
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    random_string = str(uuid.uuid4())[:8]
-    return f"USER_{timestamp}_{random_string}"
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password):
+def get_password_hash(password: str):
     return pwd_context.hash(password)
 
 def get_user(db: Session, username: str):
@@ -58,7 +47,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
     user = get_user(db, username)
     if user is None:
         raise credentials_exception
