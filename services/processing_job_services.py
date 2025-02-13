@@ -23,7 +23,7 @@ def format_processing_job(status: ProcessingStatus):
 
 
 
-def get_all_processing_jobs(
+async def get_all_processing_jobs(
     db: Session,
     current_user: User,
     skip: int = 0,
@@ -41,10 +41,10 @@ def get_all_processing_jobs(
             query = query.filter(ProcessingStatus.status == status_filter)
         
         # Get total count for pagination
-        total_jobs = query.count()
+        total_jobs =await query.count()
         
         # Get jobs with pagination and ordering
-        jobs = query.order_by(ProcessingStatus.start_time.desc())\
+        jobs =await query.order_by(ProcessingStatus.start_time.desc())\
                    .offset(skip)\
                    .limit(limit)\
                    .all()

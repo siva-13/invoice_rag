@@ -312,11 +312,6 @@ async def convert_pdfs_to_images_gpu(
             detail=f"Error during GPU-accelerated PDF conversion: {str(e)}"
         )
 
-def encode_image(image_path: str) -> str:
-    """Encode image to base64 string"""
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
-    
 async def delete_table(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         Base.metadata.drop_all(bind=engine)

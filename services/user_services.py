@@ -93,7 +93,7 @@ async def authenticate_user(
     db: Session = Depends(get_db)
 ):
      # Get user from database
-    user = get_user(db, form_data.username)
+    user =await get_user(db, form_data.username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,7 +102,7 @@ async def authenticate_user(
         )
     
     # Verify password
-    if not verify_password(form_data.password, user.password_hash):
+    if not await verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -111,7 +111,7 @@ async def authenticate_user(
     
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
+    access_token =await create_access_token(
         data={"sub": user.username}, 
         expires_delta=access_token_expires
     )

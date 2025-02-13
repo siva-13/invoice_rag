@@ -21,22 +21,22 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Helper functions
-def generate_unique_id():
+async def generate_unique_id():
     """Generate a unique ID based on timestamp and UUID"""
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     random_string = str(uuid.uuid4())[:8]
     return f"USER_{timestamp}_{random_string}"
 
-def verify_password(plain_password, hashed_password):
+async def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password):
+async def get_password_hash(password):
     return pwd_context.hash(password)
 
-def get_user(db: Session, username: str):
+async def get_user(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta

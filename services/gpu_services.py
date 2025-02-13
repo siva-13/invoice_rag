@@ -43,7 +43,7 @@ class GPUPDFProcessor:
             print(f"Error converting PDF {filename}: {str(e)}")
             return []
 
-    def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
+    async def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
         """Process a batch of images using GPU, but retain their original appearance."""
         # Convert images to tensors and move to GPU without altering appearance
         tensors = [self.transform(img) for img in images]
@@ -51,14 +51,14 @@ class GPUPDFProcessor:
 
         # No processing like contrast enhancement, just convert back to CPU and PIL Images
         batch = batch.cpu()
-        processed_images = [
+        processed_images =await [
             transforms.ToPILImage()(img)
             for img in batch
         ]
        
         return processed_images
 
-    def _convert_single_pdf(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
+    async def _convert_single_pdf(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
         """Convert PDF to images with GPU acceleration without altering appearance."""
         try:
             # Convert PDF pages to images
@@ -90,7 +90,7 @@ class GPUPDFProcessor:
                         quality=90,
                         optimize=True
                     )
-                    saved_paths.append(image_path)
+                    await saved_paths.append(image_path)
            
             return saved_paths
            

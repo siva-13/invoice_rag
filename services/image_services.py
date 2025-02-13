@@ -107,7 +107,7 @@ async def process_single_image(image_path: str, session: Session, pdf_file: PDFF
             status.failed_images += 1
             session.commit()
         return None
-def encode_image(image_path: str) -> str:
+async def encode_image(image_path: str) -> str:
     """Encode image to base64 string"""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
