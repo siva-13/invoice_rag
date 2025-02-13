@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from temp import process_pdfs
-from main import API_SEMAPHORE,client
+from config import API_SEMAPHORE,client
 from database.models import Invoice, InvoiceDB, InvoiceItemDB, PDFFile, ProcessingStatus
 import asyncio
 from typing import Optional
@@ -29,7 +29,7 @@ async def process_single_image(image_path: str, session: Session, pdf_file: PDFF
                     loop.run_in_executor(
                         None,
                         lambda: client.beta.chat.completions.parse(
-                            model="gpt-4o",
+                            model="deepseek-r1-distill-llama-70b",
                             messages=[
                                 {
                                     "role": "user",

@@ -1,79 +1,85 @@
-# # TODO
-# # Convert into modules
-# # 
-# # add validates to avoid same file being processed.
-# #  
-# from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, BackgroundTasks
-# from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-# from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
-# from sqlalchemy.orm import sessionmaker, Session, declarative_base, relationship
-# from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-# from sqlalchemy.future import select
-# from sqlalchemy.ext.asyncio import async_sessionmaker
-# from sqlalchemy import text
-# import asyncio
-# from concurrent.futures import ProcessPoolExecutor
-# from sqlalchemy import ForeignKey
-# from passlib.context import CryptContext
-# from concurrent.futures import ThreadPoolExecutor
-# from datetime import datetime, timedelta
-# from typing import Optional, List, Any, Dict
-# from jose import JWTError, jwt
-# from pdf2image import convert_from_path
-# from torchvision import transforms
-# from PIL import Image
-# from pydantic import BaseModel, Field
-# # import aiohttp
-# import json
-# import base64
-# from functools import partial
-# import uuid
-# import os
-# import shutil
-# import time
-# import numpy as np
-# import torch
-# from openai import OpenAI
+# TODO
+# Convert into modules
+# 
+# add validates to avoid same file being processed.
+#  
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, BackgroundTasks,APIRouter
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy.orm import sessionmaker, Session, declarative_base, relationship
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import text
+import asyncio
+from concurrent.futures import ProcessPoolExecutor
+from sqlalchemy import ForeignKey
+from passlib.context import CryptContext
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+from typing import Optional, List, Any, Dict
+from jose import JWTError, jwt
+from pdf2image import convert_from_path
+from torchvision import transforms
+from PIL import Image
+from pydantic import BaseModel, Field
+# import aiohttp
+import json
+import base64
+from functools import partial
+import uuid
+import os
+import shutil
+import time
+import numpy as np
+import torch
+from openai import OpenAI
+from response.response import router
+from response import response
 
-# os.environ["OPENAI_API_KEY"] = "api-key-here"
-# DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# print(f"Using device: {DEVICE}")
 
-# # Constants
-# PDF_IMAGE_DIR = "./pdfs_to_image"
-# UPLOAD_DIR = "./uploaded_pdfs"
-# MAX_WORKERS = 10  # Adjust based on your CPU cores
-# BATCH_SIZE = 10  # Increased batch size for GPU processing
-# RATE_LIMIT_REQUESTS = 50  # Requests per minute limit for OpenAI API
-# RATE_LIMIT_WINDOW = 60  # Window in seconds
 
-# # Update the semaphore to allow more concurrent operations
-# MAX_CONCURRENT_REQUESTS = 20  # Increased from 5
-# API_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-# # Add a process pool for CPU-bound tasks
-# process_pool = ProcessPoolExecutor(max_workers=4)
 
-# # Initialize OpenAI client
-# client = OpenAI()
+os.environ["OPENAI_API_KEY"] = "api-key-here"
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {DEVICE}")
 
-# # JWT Settings
-# SECRET_KEY = "your-secret-key-here"  # In production, use a secure secret key
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = 100
+# Constants
+PDF_IMAGE_DIR = "./pdfs_to_image"
+UPLOAD_DIR = "./uploaded_pdfs"
+MAX_WORKERS = 10  # Adjust based on your CPU cores
+BATCH_SIZE = 10  # Increased batch size for GPU processing
+RATE_LIMIT_REQUESTS = 50  # Requests per minute limit for OpenAI API
+RATE_LIMIT_WINDOW = 60  # Window in seconds
 
-# # Initialize FastAPI app
-# app = FastAPI(title="Gen AI Invoice API")
+# Update the semaphore to allow more concurrent operations
+MAX_CONCURRENT_REQUESTS = 20  # Increased from 5
+API_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-# # Add CORS middleware
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # Allow all origins
-#     allow_credentials=True,
-#     allow_methods=["*"],  # Allow all methods
-#     allow_headers=["*"],  # Allow all headers
-# )
+# Add a process pool for CPU-bound tasks
+process_pool = ProcessPoolExecutor(max_workers=4)
+
+# Initialize OpenAI client
+client = OpenAI()
+
+# JWT Settings
+SECRET_KEY = "your-secret-key-here"  # In production, use a secure secret key
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 100
+
+# Initialize FastAPI app
+app = FastAPI(title="Gen AI Invoice API")
+app.include_router(response.router)
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 # # Database Configuration
 # SQLALCHEMY_DATABASE_URL = "sqlite:///./database/users.db"
@@ -94,112 +100,6 @@
 # # OAuth2 setup with JWT
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# # Update User model to include relationships
-# class User(Base):
-#     __tablename__ = "users"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     unique_id = Column(String, unique=True, index=True)
-#     username = Column(String, unique=True, index=True)
-#     password_hash = Column(String)
-    
-#     # Add relationships
-#     pdf_files = relationship("PDFFile", back_populates="user")
-#     invoices = relationship("InvoiceDB", back_populates="user")
-
-# # Update PDFFile model to include relationships
-# class PDFFile(Base):
-#     __tablename__ = "pdf_files"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     filename = Column(String)
-#     file_path = Column(String)
-#     upload_time = Column(DateTime, default=datetime.utcnow)
-#     user_id = Column(String, ForeignKey("users.unique_id"))
-    
-#     # Add relationships
-#     user = relationship("User", back_populates="pdf_files")
-#     invoice = relationship("InvoiceDB", back_populates="pdf_file", uselist=False)
-
-# # Update InvoiceDB model with relationships
-# class InvoiceDB(Base):
-#     __tablename__ = "invoices"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     user_id = Column(String, ForeignKey("users.unique_id"), index=True)
-#     pdf_file_id = Column(Integer, ForeignKey("pdf_files.id"), index=True)
-#     invoice_number = Column(String, index=True)
-#     seller_name = Column(String)
-#     seller_gstin = Column(String, nullable=True)
-#     date_of_invoice = Column(String)
-#     buyer_order_number = Column(String, nullable=True)
-#     buyer_name = Column(String)
-#     buyer_gstin = Column(String, nullable=True)
-#     number_of_items = Column(Integer, nullable=True)
-#     total_amount = Column(Float, nullable=True)
-#     sgst = Column(Float, nullable=True)
-#     cgst = Column(Float, nullable=True)
-#     created_at = Column(DateTime, default=datetime.utcnow)
-#     # raw_response = Column(String)  # Store the complete OpenAI response
-    
-#     # Add relationships
-#     user = relationship("User", back_populates="invoices")
-#     pdf_file = relationship("PDFFile", back_populates="invoice")
-#     items = relationship("InvoiceItemDB", back_populates="invoice", cascade="all, delete-orphan")
-
-# # Update InvoiceItemDB model with relationship
-# class InvoiceItemDB(Base):
-#     __tablename__ = "invoice_items"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     invoice_id = Column(Integer, ForeignKey("invoices.id"), index=True)
-#     description = Column(String)
-#     quantity = Column(Integer)
-#     rate_per_unit = Column(Float)
-#     amount = Column(Float, nullable=True)
-    
-#     # Add relationship
-#     invoice = relationship("InvoiceDB", back_populates="items")
-
-# # Invoice Model
-# class Invoice(BaseModel):
-#     # Invoice Step Model
-#     class Step(BaseModel):
-#         description: str = Field(..., description="Description of the item")
-#         quantity: int = Field(..., description="Quantity of the item")
-#         rate_per_unit: float = Field(..., description="Rate per unit of the item")
-#         amount: Optional[float] = Field(None, description="Total amount for the item")
-#     invoice_number: str = Field(..., description="Unique invoice identifier")
-#     seller_name: str = Field(..., description="Name of the seller")
-#     seller_gstin: Optional[str] = Field(None, description="GSTIN of the seller")
-#     date_of_invoice: str = Field(..., description="Date of the invoice in YYYY-MM-DD format")
-#     buyer_order_number: Optional[str] = Field(None, description="Order number from the buyer")
-#     buyer_name: str = Field(..., description="Name of the buyer")
-#     buyer_gstin: Optional[str] = Field(None, description="GSTIN of the buyer")
-#     number_of_items: Optional[int] = Field(None, description="Number of items in the order")
-#     item_list: list[Step]
-#     total_amount: Optional[float] = Field(None, description="Total amount for the invoice")
-#     sgst: Optional[float] = Field(None, description="State GST amount")
-#     cgst: Optional[float] = Field(None, description="Central GST amount")
-
-# class Query(BaseModel):
-#     sqlQuery: str = Field(..., description="SQL query based on user prompt")
-
-# class ProcessingStatus(Base):
-#     __tablename__ = "processing_status"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     user_id = Column(String, ForeignKey("users.unique_id"))
-#     start_time = Column(DateTime, default=datetime.utcnow)
-#     end_time = Column(DateTime, nullable=True)
-#     total_images = Column(Integer)
-#     processed_images = Column(Integer, default=0)
-#     failed_images = Column(Integer, default=0)
-#     status = Column(String)  # 'processing', 'completed', 'failed'
-#     error_message = Column(String, nullable=True)
-    
-# # Create tables
-# Base.metadata.create_all(bind=engine)
 
 # # Create directory for uploaded PDFs
 # if not os.path.exists(UPLOAD_DIR):
@@ -389,46 +289,47 @@
 #     form_data: OAuth2PasswordRequestForm = Depends(),
 #     db: Session = Depends(get_db)
 # ):
-#     # Check if user already exists
-#     if get_user(db, form_data.username):
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Username already registered"
-#         )
+#     # # Check if user already exists
+#     # if get_user(db, form_data.username):
+#     #     raise HTTPException(
+#     #         status_code=status.HTTP_400_BAD_REQUEST,
+#     #         detail="Username already registered"
+#     #     )
     
-#     # Create new user
-#     unique_id = generate_unique_id()
-#     new_user = User(
-#         username=form_data.username,
-#         password_hash=get_password_hash(form_data.password),
-#         unique_id=unique_id
-#     )
+#     # # Create new user
+#     # unique_id = generate_unique_id()
+#     # new_user = User(
+#     #     username=form_data.username,
+#     #     password_hash=get_password_hash(form_data.password),
+#     #     unique_id=unique_id
+#     # )
     
-#     try:
-#         db.add(new_user)
-#         db.commit()
-#         db.refresh(new_user)
+#     # try:
+#     #     db.add(new_user)
+#     #     db.commit()
+#     #     db.refresh(new_user)
         
-#         # Create access token
-#         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#         access_token = create_access_token(
-#             data={"sub": new_user.username}, 
-#             expires_delta=access_token_expires
-#         )
+#     #     # Create access token
+#     #     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+#     #     access_token = create_access_token(
+#     #         data={"sub": new_user.username}, 
+#     #         expires_delta=access_token_expires
+#     #     )
         
-#         return {
-#             "message": "User created successfully",
-#             "username": new_user.username,
-#             "unique_id": new_user.unique_id,
-#             "access_token": access_token,
-#             "token_type": "bearer"
-#         }
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Error creating user: {str(e)}"
-#         )
+#     #     return {
+#     #         "message": "User created successfully",
+#     #         "username": new_user.username,
+#     #         "unique_id": new_user.unique_id,
+#     #         "access_token": access_token,
+#     #         "token_type": "bearer"
+#     #     }
+#     # except Exception as e:
+#     #     db.rollback()
+#     #     raise HTTPException(
+#     #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#     #         detail=f"Error creating user: {str(e)}"
+#     #     )
+#     return user_services.create_user(db, form_data)
 
 # @app.post("/token")
 # async def login(
@@ -1462,288 +1363,4 @@
 #         )
 
 
-
-# TODO
-# Convert into modules
-# 
-# add validates to avoid same file being processed.
-#  
-from fastapi import FastAPI, HTTPException, Depends, Query, status, File, UploadFile, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import Engine, create_engine, Column, Integer, String, DateTime, Float
-from sqlalchemy.orm import sessionmaker, Session, declarative_base, relationship
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy import text
-import asyncio
-from concurrent.futures import ProcessPoolExecutor
-from sqlalchemy import ForeignKey
-from passlib.context import CryptContext  # type: ignore
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
-from typing import Optional, List, Any, Dict
-from jose import JWTError, jwt
-from pdf2image import convert_from_path
-from torchvision import transforms
-from PIL import Image
-from pydantic import BaseModel, Field
-# import aiohttp
-import json
-import base64
-from functools import partial
-import uuid
-import os
-import shutil
-import time
-import numpy as np
-import torch
-from openai import OpenAI
-from database.models import Invoice, InvoiceDB, InvoiceItemDB, PDFFile, ProcessingStatus, SessionLocal, User,Base
-from database.database import get_db
-from services.auth import get_current_user,generate_unique_id,get_password_hash,create_access_token,get_user,ACCESS_TOKEN_EXPIRE_MINUTES, verify_password
-from response.response import router
-
-
-os.environ["OPENAI_API_KEY"] = "api-key-here"
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {DEVICE}")
-
-
-# Constants
-PDF_IMAGE_DIR = "./pdfs_to_image"
-UPLOAD_DIR = "./uploaded_pdfs"
-MAX_WORKERS = 10  # Adjust based on your CPU cores
-BATCH_SIZE = 10  # Increased batch size for GPU processing
-RATE_LIMIT_REQUESTS = 50  # Requests per minute limit for OpenAI API
-RATE_LIMIT_WINDOW = 60  # Window in seconds
-
-# Update the semaphore to allow more concurrent operations
-MAX_CONCURRENT_REQUESTS = 20  # Increased from 5
-API_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-
-# Add a process pool for CPU-bound tasks
-process_pool = ProcessPoolExecutor(max_workers=4)
-
-# Initialize OpenAI client
-client = OpenAI()
-
-
-
-# Initialize FastAPI app
-app = FastAPI(title="Gen AI Invoice API")
-app.include_router(router)
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
-)
-
-
-
-# Create async engine and session
-async_engine = create_async_engine(
-    "sqlite+aiosqlite:///./database/users.db",
-    connect_args={"check_same_thread": False}
-)
-async_session = async_sessionmaker(async_engine, expire_on_commit=False)
-
-
-
-# Create directory for uploaded PDFs
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-
-class GPUPDFProcessor:
-    def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-        self.device = DEVICE
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.ConvertImageDtype(torch.float32)
-        ])
-      
-    async def convert_pdf_to_images(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
-        try:
-            convert_func = partial(
-                self._convert_single_pdf,
-                output_dir=output_dir,
-                filename=filename
-            )
-           
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                convert_func,
-                pdf_path
-            )
-            return result
-           
-        except Exception as e:
-            print(f"Error converting PDF {filename}: {str(e)}")
-            return []
-
-    def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
-        """Process a batch of images using GPU, but retain their original appearance."""
-        # Convert images to tensors and move to GPU without altering appearance
-        tensors = [self.transform(img) for img in images]
-        batch = torch.stack(tensors).to(self.device)
-
-        # No processing like contrast enhancement, just convert back to CPU and PIL Images
-        batch = batch.cpu()
-        processed_images = [
-            transforms.ToPILImage()(img)
-            for img in batch
-        ]
-       
-        return processed_images
-
-    def _convert_single_pdf(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
-        """Convert PDF to images with GPU acceleration without altering appearance."""
-        try:
-            # Convert PDF pages to images
-            images = convert_from_path(
-                pdf_path,
-                dpi=200,
-                fmt='jpeg',
-                thread_count=2
-            )
-           
-            saved_paths = []
-            base_filename = os.path.splitext(filename)[0]
-           
-            # Process images in batches using GPU
-            for i in range(0, len(images), BATCH_SIZE):
-                batch = images[i:i + BATCH_SIZE]
-                processed_batch = self.process_image_batch_gpu(batch)
-               
-                # Save processed images
-                for j, processed_img in enumerate(processed_batch):
-                    page_num = i + j + 1
-                    image_path = os.path.join(
-                        output_dir,
-                        f"{base_filename}_page_{page_num}.jpg"
-                    )
-                    processed_img.save(
-                        image_path,
-                        'JPEG',
-                        quality=90,
-                        optimize=True
-                    )
-                    saved_paths.append(image_path)
-           
-            return saved_paths
-           
-        except Exception as e:
-            print(f"Error in _convert_single_pdf: {str(e)}")
-            return []
-
-class GPUPDFConversionManager:
-    def __init__(self):
-        self.processor = GPUPDFProcessor()
-       
-    async def process_pdf_batch(
-        self,
-        pdf_files: List[dict],
-        user_id: str
-    ) -> List[dict]:
-        # Create user directory
-        user_image_dir = os.path.join(PDF_IMAGE_DIR, user_id)
-        os.makedirs(user_image_dir, exist_ok=True)
-       
-        # Process PDFs in optimized batches
-        results = []
-        for i in range(0, len(pdf_files), BATCH_SIZE):
-            batch = pdf_files[i:i + BATCH_SIZE]
-            tasks = [
-                self.processor.convert_pdf_to_images(
-                    pdf['file_path'],
-                    user_image_dir,
-                    pdf['filename']
-                )
-                for pdf in batch
-            ]
-           
-            batch_results = await asyncio.gather(*tasks)
-           
-            for pdf, image_paths in zip(batch, batch_results):
-                results.append({
-                    'pdf_name': pdf['filename'],
-                    'image_paths': image_paths,
-                    'status': 'success' if image_paths else 'failed',
-                    'pages_converted': len(image_paths)
-                })
-               
-        return results
-
-# Initialize GPU-enabled manager
-gpu_conversion_manager = GPUPDFConversionManager()
-    
-
-# async def process_image_with_openai(image_path: str) -> Invoice:
-#     """Process an image using OpenAI's Vision API asynchronously"""
-#     try:
-#         # Initialize OpenAI client
-#         client = OpenAI(api_key=openai_api_key)
-        
-#         # Run the synchronous OpenAI call in a thread pool
-#         loop = asyncio.get_event_loop()
-#         invoice = await loop.run_in_executor(
-#             None,
-#             partial(process_with_openai_sync, image_path, client)
-#         )
-        
-#         return invoice
-        
-#     except Exception as e:
-#         print(f"Error processing image with OpenAI: {str(e)}")
-#         raise
-
-#  revsion 2 ----------------------------------------------------------------------------------------------------------------------------
-
-# Add new utility function to format processing job info
-def format_processing_job(status: ProcessingStatus):
-    return {
-        "processing_id": status.id,
-        "status": status.status,
-        "total_images": status.total_images,
-        "processed_images": status.processed_images,
-        "failed_images": status.failed_images,
-        "progress_percentage": round((status.processed_images + status.failed_images) / status.total_images * 100, 2) if status.total_images > 0 else 0,
-        "start_time": status.start_time,
-        "end_time": status.end_time,
-        "error_message": status.error_message,
-        "duration": str(status.end_time - status.start_time) if status.end_time else None,
-        "remaining_images": status.total_images - (status.processed_images + status.failed_images)
-    }
-
-
-
-
-async def synthesize_response(user_question: str, sql_query_results: List[Dict[str, Any]], client: OpenAI) -> str:
-    """Convert SQL results to natural language response using OpenAI"""
-    response = await asyncio.get_running_loop().run_in_executor(
-        None,
-        lambda: client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Please generate a clear and concise human-readable response based on the user's question and the SQL query results. If no results are found, explain this to the user."},
-                {"role": "user", "content": f"User's Question: {user_question} SQL Query Results: {sql_query_results}."}
-            ],
-            temperature=0.1
-        )
-    )
-    
-    return response.choices[0].message.content.strip()
-
-class QueryRequest(BaseModel):
-    query: str
-
-class Token(BaseModel):
-    access_token: str = Field(..., description="JWT access token")
-    token_type: str = Field(..., description="Type of token (e.g., Bearer)")
 

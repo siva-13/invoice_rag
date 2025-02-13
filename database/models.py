@@ -59,7 +59,7 @@ class InvoiceDB(Base):
     sgst = Column(Float, nullable=True)
     cgst = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    raw_response = Column(String)  # Store the complete OpenAI response
+    # raw_response = Column(String)  # Store the complete OpenAI response
     
     # Add relationships
     user = relationship("User", back_populates="invoices")
@@ -79,8 +79,6 @@ class InvoiceItemDB(Base):
     
     # Add relationship
     invoice = relationship("InvoiceDB", back_populates="items")
-
-
 
 # Invoice Model
 class Invoice(BaseModel):
@@ -118,3 +116,6 @@ class ProcessingStatus(Base):
     failed_images = Column(Integer, default=0)
     status = Column(String)  # 'processing', 'completed', 'failed'
     error_message = Column(String, nullable=True)
+    
+class QueryRequest(BaseModel):
+    query: str

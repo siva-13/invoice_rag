@@ -52,6 +52,42 @@ async def create_user(form_data: OAuth2PasswordRequestForm = Depends(),
             detail=f"Error creating user: {str(e)}"
         )
 
+# async def create_user(db: Session, form_data: OAuth2PasswordRequestForm):
+#     # ✅ Correct way to access form data
+#     username = form_data.username  # Get username from form_data
+#     password = form_data.password  # Get password from form_data
+    
+#     # ✅ Check if user already exists
+#     existing_user = get_user(db, username)
+#     if existing_user:
+#         raise HTTPException(status_code=400, detail="Username already registered")
+
+#     # ✅ Hash password
+#     hashed_password = get_password_hash(password)
+
+#     # ✅ Create new user object
+#     new_user = User(username=username, password_hash=hashed_password, unique_id=generate_unique_id())
+
+#     try:
+#         db.add(new_user)
+#         db.commit()
+#         db.refresh(new_user)
+
+#         # ✅ Generate access token
+#         access_token = await create_access_token(data={"sub": new_user.username})  # Use await if async
+
+#         return {
+#             "message": "User created successfully",
+#             "username": new_user.username,
+#             "unique_id": new_user.unique_id,
+#             "access_token": access_token,
+#             "token_type": "bearer"
+#         }
+#     except Exception as e:
+#         db.rollback()
+#         raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
+
 async def authenticate_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)

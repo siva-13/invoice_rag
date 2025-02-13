@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from services import pdf_services, user_services, invoice_services, processing_job_services
-from database import get_db
+from database.database import get_db
 from database.models import User
 from services.auth import get_current_user
 
@@ -15,18 +15,18 @@ async def signup(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    return user_services.create_user(db, form_data)
+    return await user_services.create_user(form_data,db)
 
 @router.post("/token")
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    return user_services.authenticate_user(db, form_data)
+    return await user_services.authenticate_user(form_data,db)
 
 @router.get("/users/me")
 async def user_info(current_user: User = Depends(get_current_user)):
-    return user_services.get_user_info(current_user)
+    return await user_services.get_user_info(current_user)
 
 # PDF endpoints
 @router.post("/upload-pdfs")
@@ -35,21 +35,21 @@ async def upload_pdfs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return pdf_services.upload_pdfs(db, current_user, files)
+    return await pdf_services.upload_pdfs(db, current_user, files)
 
 @router.get("/my-pdfs")
 async def get_user_pdfs(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return pdf_services.get_user_pdfs(db, current_user)
+    return await pdf_services.get_user_pdfs(current_user,db)
 
 @router.get("/convert-pdfs-to-images-gpu")
 async def convert_pdfs_to_images_gpu(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return pdf_services.convert_pdfs_to_images_gpu(db, current_user)
+    return await pdf_services.convert_pdfs_to_images_gpu(db, current_user)
 
 # Invoice endpoints
 @router.post("/process-invoices")
@@ -58,7 +58,7 @@ async def process_invoices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return invoice_services.process_invoices(background_tasks, current_user, db)
+    return await invoice_services.process_invoices(background_tasks, current_user, db)
 
 @router.get("/processing-status/{processing_id}")
 async def get_processing_status(
@@ -66,7 +66,7 @@ async def get_processing_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return invoice_services.get_processing_status(processing_id, current_user, db)
+    return await invoice_services.get_processing_status(processing_id, current_user, db)
 
 @router.get("/invoices")
 async def get_user_invoices(
@@ -77,7 +77,7 @@ async def get_user_invoices(
     sort_by: Optional[str] = "created_at",
     sort_order: Optional[str] = "desc"
 ):
-    return invoice_services.get_user_invoices(current_user, db, skip, limit, sort_by, sort_order)
+    return await invoice_services.get_user_invoices(current_user, db, skip, limit, sort_by, sort_order)
 
 @router.get("/invoices/{invoice_id}")
 async def get_invoice_detail(
@@ -85,7 +85,7 @@ async def get_invoice_detail(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return invoice_services.get_invoice_detail(invoice_id, current_user, db)
+    return await invoice_services.get_invoice_detail(invoice_id, current_user, db)
 
 @router.post("/query-invoices")
 async def query_invoices(
@@ -93,7 +93,7 @@ async def query_invoices(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return invoice_services.query_invoices(query, current_user, db)
+    return await invoice_services.query_invoices(query, current_user, db)
 
 # Processing job endpoints
 @router.get("/processing-jobs")
@@ -119,3 +119,9 @@ async def get_processing_jobs_summary(
     db: Session = Depends(get_db)
 ):
     return processing_job_services.get_processing_jobs_summary(db, current_user)
+
+
+#delete table 
+@router.get("/drop-tables")
+async def delete_table(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return await pdf_services.delete_table(current_user,db)

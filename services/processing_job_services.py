@@ -1,8 +1,26 @@
 from sqlalchemy.orm import Session
 from database.models import ProcessingStatus,User
-from main import format_processing_job
 from typing import Optional
 from fastapi import HTTPException,status
+
+
+# Add new utility function to format processing job info
+def format_processing_job(status: ProcessingStatus):
+    return {
+        "processing_id": status.id,
+        "status": status.status,
+        "total_images": status.total_images,
+        "processed_images": status.processed_images,
+        "failed_images": status.failed_images,
+        "progress_percentage": round((status.processed_images + status.failed_images) / status.total_images * 100, 2) if status.total_images > 0 else 0,
+        "start_time": status.start_time,
+        "end_time": status.end_time,
+        "error_message": status.error_message,
+        "duration": str(status.end_time - status.start_time) if status.end_time else None,
+        "remaining_images": status.total_images - (status.processed_images + status.failed_images)
+    }
+
+
 
 
 def get_all_processing_jobs(

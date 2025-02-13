@@ -16,17 +16,8 @@ import os
 import torch
 from PIL import Image
 from torchvision import transforms
-
-
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# Constants
-PDF_IMAGE_DIR = "./pdfs_to_image"
-UPLOAD_DIR = "./uploaded_pdfs"
-MAX_WORKERS = 10  # Adjust based on your CPU cores
-BATCH_SIZE = 10  # Increased batch size for GPU processing
-RATE_LIMIT_REQUESTS = 50  # Requests per minute limit for OpenAI API
-RATE_LIMIT_WINDOW = 60  # Window in seconds
+from config import DEVICE,UPLOAD_DIR,PDF_IMAGE_DIR,MAX_WORKERS,BATCH_SIZE
+from database.models import Base,engine
 
 
 # Create directory for uploaded PDFs
@@ -325,3 +316,16 @@ def encode_image(image_path: str) -> str:
     """Encode image to base64 string"""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
+    
+async def delete_table(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        delete_all_in_directory(UPLOAD_DIR)
+        delete_all_in_directory(PDF_IMAGE_DIR)
+        return {"status": "success", "message": "Tables dropped successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error dropping tables: {str(e)}"
+        )

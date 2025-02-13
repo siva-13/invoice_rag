@@ -19,6 +19,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 setup with JWT
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 # Helper functions
 def generate_unique_id():
     """Generate a unique ID based on timestamp and UUID"""
