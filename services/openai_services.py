@@ -2,12 +2,10 @@ import base64
 import os
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from openai import OpenAI
 from sqlalchemy.orm import Session
 from database.models import PDFFile, ProcessingStatus, InvoiceDB, InvoiceItemDB
+from config import client, API_SEMAPHORE
 
-os.environ["OPENAI_API_KEY"] = "api-key-here"
-client = OpenAI()
 
 class InvoiceStep(BaseModel):
     description: str = Field(..., description="Description of the item")

@@ -378,6 +378,25 @@ docs = ["Sphinx", "furo"]
 test = ["objgraph", "psutil"]
 
 [[package]]
+name = "groq"
+version = "0.18.0"
+description = "The official Python library for the groq API"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "groq-0.18.0-py3-none-any.whl", hash = "sha256:81d5ac00057a45d8ce559d23ab5d3b3893011d1f12c35187ab35a9182d826ea6"},
+    {file = "groq-0.18.0.tar.gz", hash = "sha256:8e2ccfea406d68b3525af4b7c0e321fcb3d2a73fc60bb70b4156e6cd88c72f03"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+typing-extensions = ">=4.10,<5"
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
@@ -1283,6 +1302,20 @@ files = [
 six = ">=1.5"
 
 [[package]]
+name = "python-dotenv"
+version = "1.0.1"
+description = "Read key-value pairs from a .env file and set them as environment variables"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca"},
+    {file = "python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a"},
+]
+
+[package.extras]
+cli = ["click (>=5.0)"]
+
+[[package]]
 name = "python-jose"
 version = "3.3.0"
 description = "JOSE implementation in Python"
@@ -1722,4 +1755,4 @@ standard = ["colorama (>=0.4)", "httptools (>=0.6.3)", "python-dotenv (>=0.13)",
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "e3639b9b7104bbfc0a02f92ca1d95f0e73924f39aeddce9f28c991300badfba4"
+content-hash = "5572d1360442e3486a14cbcb484aa75eca35b7ee6c9de8e53d5220839ea61739"

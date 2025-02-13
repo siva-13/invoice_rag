@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from database.database import SessionLocal
 from services.openai_services import process_single_image
 from database.models import ProcessingStatus, PDFFile
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+
 
 async def process_invoices_background(user_id: str, image_paths: list, pdf_file_ids: list, processing_status_id: int):
     db = SessionLocal()

@@ -7,6 +7,8 @@ from services.background_tasks import process_invoices_background
 from services.image_processing import gpu_conversion_manager
 import os
 from typing import Optional, List, Any, Dict
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+
 
 
 router = APIRouter(tags=["Processing"])

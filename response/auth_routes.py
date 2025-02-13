@@ -5,6 +5,8 @@ from database.database import get_db
 from database.models import User
 from services.auth import get_current_user, create_access_token, get_password_hash,get_user,verify_password
 from services.utils import generate_unique_id
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+
 
 router = APIRouter(tags=["Authentication"])
 

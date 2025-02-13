@@ -5,6 +5,8 @@ from services.auth import get_current_user
 from services.openai_services import generate_sql_query, synthesize_response
 from pydantic import BaseModel
 from database.models import User
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+
 
 
 router = APIRouter(tags=["Query"])

@@ -54,6 +54,8 @@ torchvision = "0.21.0"
 tqdm = "4.67.1"
 typing-extensions = "4.12.2"
 uvicorn = "0.34.0"
+python-dotenv = "^1.0.1"
+groq = "^0.18.0"
 
 
 [build-system]

@@ -7,9 +7,9 @@ from PIL import Image
 import torch
 from torchvision import transforms
 from typing import List, Dict
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {DEVICE}")
+
 
 class GPUPDFProcessor:
     def __init__(self):

@@ -7,6 +7,8 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import User
+from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+
 
 SECRET_KEY = "your-secret-key-here"
 ALGORITHM = "HS256"
