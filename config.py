@@ -2,8 +2,8 @@ from concurrent.futures import ProcessPoolExecutor
 import torch
 import asyncio
 import os
-from dotenv import load_dotenv
-from openai import OpenAI  # ✅ Use OpenAI instead of Groq
+from dotenv import load_dotenv 
+from groq import Groq  # ✅ Use OpenAI instead of Groq
 
 # Load environment variables
 load_dotenv()
@@ -26,9 +26,9 @@ API_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 process_pool = ProcessPoolExecutor(max_workers=4)
 
 # Load OpenAI API Key
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise ValueError("Missing API Key! Set OPENAI_API_KEY in the .env file.")
 
 # ✅ Initialize OpenAI client
-client = OpenAI(api_key=api_key)
+client = Groq(api_key=api_key)

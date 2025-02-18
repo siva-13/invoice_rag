@@ -1,14 +1,29 @@
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from functools import partial
-from pdf2image import convert_from_path
+from functools import partial 
 from PIL import Image
 import torch
 from torchvision import transforms
 from typing import List, Dict
 from config import DEVICE, process_pool, PDF_IMAGE_DIR, UPLOAD_DIR,MAX_WORKERS,BATCH_SIZE,RATE_LIMIT_REQUESTS,RATE_LIMIT_WINDOW,MAX_CONCURRENT_REQUESTS,API_SEMAPHORE,client,api_key
+from paddleocr import PaddleOCR
+import fitz
 
+
+ocr_model=PaddleOCR(use_angle_cls=True,lang="en")
+def extract_text_from_images(image_paths):
+    """Extract text from images using PaddleOCR."""
+    extracted_texts=[]
+    for img_path in image_paths:
+        try:
+            result=ocr_model.ocr(img_path,cls=True)
+            text=" ".join(word_info[1][0] for line in result for word_info in line)
+            extracted_texts.append(text.strip())
+        except Exception as e:
+            print(f"Error processing{img_path}:{e}")
+            extracted_texts.append("")
+    return extracted_texts
 
 
 class GPUPDFProcessor:
@@ -37,19 +52,42 @@ class GPUPDFProcessor:
         return [transforms.ToPILImage()(img) for img in batch]
 
     def _convert_single_pdf(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
+        """Convert PDF to images with GPU acceleration without altering appearance."""
         try:
-            images = convert_from_path(pdf_path, dpi=200, fmt='jpeg', thread_count=2)
+            # Convert PDF pages to images
+            images = fitz.open(pdf_path)
             saved_paths = []
             base_filename = os.path.splitext(filename)[0]
-            for i in range(0, len(images), 10):
-                batch = images[i:i+10]
-                processed_batch = self.process_image_batch_gpu(batch)
-                for j, img in enumerate(processed_batch):
+           
+            # Process images in batches using GPU
+            for i in range(0, len(images), BATCH_SIZE):
+                batch = images[i:i + BATCH_SIZE]
+                processed_batch=[]
+
+                for j, page in enumerate(batch):
+                    pix=page.get_pixmap()
+                    img=Image.frombytes("RGB",[pix.width,pix.height],pix.samples)
+                    processed_batch.append(img)
+
+                processed_batch=self.process_image_batch_gpu(batch)
+               
+                # Save processed images
+                for j, processed_img in enumerate(processed_batch):
                     page_num = i + j + 1
-                    image_path = os.path.join(output_dir, f"{base_filename}_page_{page_num}.jpg")
-                    img.save(image_path, 'JPEG', quality=90, optimize=True)
+                    image_path = os.path.join(
+                        output_dir,
+                        f"{base_filename}_page_{page_num}.jpg"
+                    )
+                    processed_img.save(
+                        image_path,
+                        'JPEG',
+                        quality=90,
+                        optimize=True
+                    )
                     saved_paths.append(image_path)
+           
             return saved_paths
+           
         except Exception as e:
             print(f"Error in _convert_single_pdf: {str(e)}")
             return []
