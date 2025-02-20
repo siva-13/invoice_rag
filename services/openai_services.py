@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database.models import PDFFile, ProcessingStatus, InvoiceDB, InvoiceItemDB
 from config import client, API_SEMAPHORE
 import asyncio
-from image_processing import extract_text_from_images
+from services.image_processing import extract_text_from_images
 
 class InvoiceStep(BaseModel):
     description: str = Field(..., description="Description of the item")
@@ -62,7 +62,7 @@ async def process_single_image(image_path: str, session: Session, pdf_file: PDFF
                                     "content": [
                                         {
                                             "type": "text",
-                                            "text": f"Extract structured data from this invoice text:\n\n{extracted_text}",
+                                            "text": f"Extract structured data from this invoice image. Be precise and accurate in extracting the data. kindly check the image and extract the following details: Invoice Number, Seller Name, Seller GSTIN, Date of Invoice, Buyer Order Number, Buyer Name, Buyer GSTIN, Number of Items, Total Amount, SGST, CGST, and a list of items with Description, Quantity, Rate per Unit, and Amount.{extracted_text}",
                                         }
                                     ],
                                 }
@@ -136,7 +136,7 @@ async def generate_sql_query(query: str, user_id: str) -> str:
     Tables and relationships...
     """
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="deepseek-r1-distill-llama-70b",
         messages=[{"role": "system", "content": "Convert to SQL..."}],
         response_model=Query
     )
@@ -144,7 +144,7 @@ async def generate_sql_query(query: str, user_id: str) -> str:
 
 async def synthesize_response(user_question: str, results: List[Dict]) -> str:
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="deepseek-r1-distill-llama-70b",
         messages=[{"role": "system", "content": "Generate response..."}]
     )
     return response.choices[0].message.content
