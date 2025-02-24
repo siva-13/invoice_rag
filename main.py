@@ -6,6 +6,8 @@ import os
 from database.models import User
 from services.auth import get_current_user
 from sqlalchemy.orm import Session
+from services.image_processing import extract_text_from_images
+
 
 
 app = FastAPI(title="Gen AI Invoice API")
@@ -20,6 +22,7 @@ app.add_middleware(
 )
 
 # Create database tables
+# Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 # Include all routers
@@ -45,3 +48,7 @@ async def delete_table(current_user: User = Depends(get_current_user), db: Sessi
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error dropping tables: {str(e)}"
         )
+    
+
+
+

@@ -223,39 +223,6 @@ async def get_processing_status(
 #         )
 
 
-
-from fastapi import BackgroundTasks
-
-async def process_ocr_background(image_paths: List[str], processing_status_id: int, db: Session):
-    """Process OCR in the background and update the processing status."""
-    try:
-        extracted_texts = extract_text_from_images(image_paths)
-        
-        # Update the processing status in the database
-        processing_status = db.query(ProcessingStatus).filter(
-            ProcessingStatus.id == processing_status_id
-        ).first()
-        
-        if processing_status:
-            processing_status.processed_images = len(extracted_texts)
-            processing_status.status = "completed"
-            db.commit()
-        
-        # Save extracted text to the database or perform other actions
-        # Example: Save to a TextFile model or return as part of the response
-        
-    except Exception as e:
-        # Handle errors and update the status
-        processing_status = db.query(ProcessingStatus).filter(
-            ProcessingStatus.id == processing_status_id
-        ).first()
-        
-        if processing_status:
-            processing_status.status = "failed"
-            processing_status.error_message = str(e)
-            db.commit()
-        raise
-
 @router.post("/process-invoices")
 async def process_invoices(
     background_tasks: BackgroundTasks,
@@ -263,14 +230,35 @@ async def process_invoices(
     db: Session = Depends(get_db)
 ):
     try:
+        # Get all image paths for the user
         user_image_dir = os.path.join(PDF_IMAGE_DIR, current_user.unique_id)
-        if not os.path.exists(user_image_dir) or not os.listdir(user_image_dir):
+        if not os.path.exists(user_image_dir):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No images found for processing"
             )
 
-        image_paths = [os.path.join(user_image_dir, f) for f in os.listdir(user_image_dir) if f.endswith('.jpg')]
+        # Get all PDF files for the user
+        pdf_files = db.query(PDFFile).filter(
+            PDFFile.user_id == current_user.unique_id
+        ).all()
+
+        if not pdf_files:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No PDF files found"
+            )
+
+        # Get PDF file IDs
+        pdf_file_ids = [pdf.id for pdf in pdf_files]
+
+        # Get all relevant image paths
+        image_paths = [
+            os.path.join(user_image_dir, f) 
+            for f in os.listdir(user_image_dir) 
+            if f.endswith('.jpg')
+        ]
+        extracted_text=extract_text_from_images(image_paths)
 
         if not image_paths:
             raise HTTPException(
@@ -278,7 +266,7 @@ async def process_invoices(
                 detail="No images found for processing"
             )
 
-        # Create a new processing status record
+        # Create processing status record
         processing_status = ProcessingStatus(
             user_id=current_user.unique_id,
             total_images=len(image_paths),
@@ -288,17 +276,18 @@ async def process_invoices(
         db.commit()
         db.refresh(processing_status)
 
-        # Add OCR processing to background tasks
+        # Start background processing
         background_tasks.add_task(
-            process_ocr_background,
-            image_paths,
-            processing_status.id,
-            db
+            process_invoices_background,
+            current_user.unique_id,
+            extracted_text,
+            pdf_file_ids,
+            processing_status.id
         )
 
         return {
             "status": "processing_started",
-            "message": "OCR processing started in background",
+            "message": "Invoice processing started in background",
             "total_images": len(image_paths),
             "processing_id": processing_status.id
         }
@@ -306,8 +295,11 @@ async def process_invoices(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error starting OCR processing: {str(e)}"
+            detail=f"Error starting invoice processing: {str(e)}"
         )
+ 
+
+
 
 
 @router.get("/processing-jobs")

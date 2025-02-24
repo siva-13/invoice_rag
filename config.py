@@ -4,6 +4,7 @@ import asyncio
 import os
 from dotenv import load_dotenv 
 from groq import Groq  # ✅ Use OpenAI instead of Groq
+from langchain_groq import ChatGroq
 
 # Load environment variables
 load_dotenv()
@@ -32,3 +33,4 @@ if not api_key:
 
 # ✅ Initialize OpenAI client
 client = Groq(api_key=api_key)
+llm=ChatGroq(model="llama-3.2-90b-vision-preview")

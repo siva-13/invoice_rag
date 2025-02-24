@@ -80,7 +80,6 @@ from database.database import get_db
 from services.auth import get_current_user
 from database.models import User
 from sqlalchemy import text
-from services.openai_services import encode_image, process_single_image
 
 
 from config import client, api_key  # Assuming you have the API key stored here
@@ -155,7 +154,7 @@ async def generate_sql_query(query: str, user_id: str) -> str:
     ]
     payload = {
         "messages": messages,
-        "model": "deepseek-r1-distill-llama-70b"
+        "model": "llama-3.2-90b-vision-preview"
     }
     
     response = requests.post(groq_url, json=payload, headers=headers)
@@ -200,7 +199,7 @@ async def synthesize_response(user_question: str, results: list) -> str:
     ]
     payload = {
         "messages": messages,
-        "model": "deepseek-r1-distill-llama-70b"
+        "model": "llama-3.2-90b-vision-preview"
     }
     
     response = requests.post(groq_url, json=payload, headers=headers)

@@ -1,12 +1,17 @@
-import base64
+import sys
 import os
+import base64
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from sqlalchemy.orm import Session
 from database.models import PDFFile, ProcessingStatus, InvoiceDB, InvoiceItemDB
-from config import client, API_SEMAPHORE
+from config import client, API_SEMAPHORE,llm
 import asyncio
 from services.image_processing import extract_text_from_images
+from database.database import SessionLocal
+
+
 
 class InvoiceStep(BaseModel):
     description: str = Field(..., description="Description of the item")
@@ -35,68 +40,55 @@ def encode_image(image_path: str) -> str:
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
-async def process_single_image(image_path: str, session: Session, pdf_file: PDFFile, processing_status_id: int) -> Optional[Invoice]:
-    """Process a single image and store the extracted invoice data"""
+async def process_single_image(extracted_text:str,pdf_file_id:int,user_id:int,processing_status_id:int)-> Optional[Invoice]:
+    session=SessionLocal()
     try:
-        # Use wait_for instead of timeout context manager
         async with API_SEMAPHORE:
-            # Encode image in process pool to avoid blocking
-            loop = asyncio.get_event_loop()
             try:
-                extracted_texts = await asyncio.to_thread(extract_text_from_images, [image_path])
-                extracted_text = extracted_texts[0] if extracted_texts else ""
+                invoice_prompt = f"""
+                Extract structured data from this invoice image. 
+                Be precise and accurate in extracting the data. Check the image and extract:
+                Invoice Number, Seller Name, Seller GSTIN, Date of Invoice, Buyer Order Number, Buyer Name, Buyer GSTIN, 
+                Number of Items, Total Amount, SGST, CGST, and a list of items with Description, Quantity, Rate per Unit, and Amount.
 
-                if not extracted_text.strip():
-                    print(f"OCR extraction failed for {image_path}")
-                    return None
-
-                # Call OpenAI API with timeout
-                response = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None,
-                        lambda: client.beta.chat.completions.parse(
-                            model="deepseek-r1-distill-llama-70b",
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "text": f"Extract structured data from this invoice image. Be precise and accurate in extracting the data. kindly check the image and extract the following details: Invoice Number, Seller Name, Seller GSTIN, Date of Invoice, Buyer Order Number, Buyer Name, Buyer GSTIN, Number of Items, Total Amount, SGST, CGST, and a list of items with Description, Quantity, Rate per Unit, and Amount.{extracted_text}",
-                                        }
-                                    ],
-                                }
-                            ],
-                            response_format=Invoice,
-                        )
-                    ),
-                    timeout=25  #25 second timeout for API call
-                )
-                
+                Invoice Text: {extracted_text}
+                """
+                response = await asyncio.wait_for(llm.invoke(invoice_prompt),timeout=25)
+                # Validate the LLM response
+                if not response or not hasattr(response, "content"):
+                    print("Invalid LLM response.")
+                    raise ValueError("Invalid LLM response.")
                 invoice_data = response.choices[0].message.parsed
-
-                # Create invoice record in database
-                invoice_db = InvoiceDB(
-                    user_id=pdf_file.user_id,
-                    pdf_file_id=pdf_file.id,
-                    invoice_number=invoice_data.invoice_number,
-                    seller_name=invoice_data.seller_name,
-                    seller_gstin=invoice_data.seller_gstin,
-                    date_of_invoice=invoice_data.date_of_invoice,
-                    buyer_order_number=invoice_data.buyer_order_number,
-                    buyer_name=invoice_data.buyer_name,
-                    buyer_gstin=invoice_data.buyer_gstin,
-                    number_of_items=invoice_data.number_of_items,
-                    total_amount=invoice_data.total_amount,
-                    sgst=invoice_data.sgst,
-                    cgst=invoice_data.cgst,
-                    # raw_response=str(response)
+                required_fields = [
+                    "invoice_number", "seller_name", "seller_gstin", "date_of_invoice",
+                    "buyer_order_number", "buyer_name", "buyer_gstin", "number_of_items",
+                    "total_amount", "sgst", "cgst", "item_list"
+                ]
+                for field in required_fields:
+                    if field not in invoice_data:
+                        print(f"Missing required field in LLM response: {field}")
+                        raise ValueError(f"Missing required field: {field}")
+                invoice=Invoice(**invoice_data)
+                invoice_db=InvoiceDB(
+                    user_id=user_id,
+                    pdf_file_id=pdf_file_id,
+                    invoice_number=invoice.invoice_number,
+                    seller_name=invoice.seller_name,
+                    seller_gstin=invoice.seller_gstin,
+                    date_of_invoice=invoice.date_of_invoice,
+                    buyer_order_number=invoice.buyer_order_number,
+                    buyer_name=invoice.buyer_name,
+                    buyer_gstin=invoice.buyer_gstin,
+                    number_of_items=invoice.number_of_items,
+                    total_amount=invoice.total_amount,
+                    sgst=invoice.sgst,
+                    cgst=invoice.cgst,
                 )
                 session.add(invoice_db)
-                session.flush()
+                session.commit()
 
-                # Create invoice items
-                for item in invoice_data.item_list:
+                # Create invoice items in the database
+                for item in invoice.item_list:
                     invoice_item = InvoiceItemDB(
                         invoice_id=invoice_db.id,
                         description=item.description,
@@ -106,16 +98,15 @@ async def process_single_image(image_path: str, session: Session, pdf_file: PDFF
                     )
                     session.add(invoice_item)
 
-                # Update processing status
+                # Update processing status in the database
                 status = session.query(ProcessingStatus).get(processing_status_id)
                 if status:
                     status.processed_images += 1
                     session.commit()
 
-                return invoice_data
-
+                return invoice
             except asyncio.TimeoutError:
-                print(f"Timeout processing image {image_path}")
+                print(f"Timeout processing image {extracted_text}")
                 status = session.query(ProcessingStatus).get(processing_status_id)
                 if status:
                     status.failed_images += 1
@@ -123,13 +114,16 @@ async def process_single_image(image_path: str, session: Session, pdf_file: PDFF
                 return None
 
     except Exception as e:
-        print(f"Error processing image {image_path}: {str(e)}")
+        print(f"Error processing invoice: {str(e)}")
+        # Update processing status to reflect failure
         status = session.query(ProcessingStatus).get(processing_status_id)
         if status:
             status.failed_images += 1
             session.commit()
-        return None
+            return None
 
+    finally:
+        session.close()  # Ensure the database session is closed
 
 async def generate_sql_query(query: str, user_id: str) -> str:
     schema = """
