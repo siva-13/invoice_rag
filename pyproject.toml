@@ -1,0 +1,36 @@
+[project]
+name = "invoice-rag"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "surya2406",email = "surya.rs2406@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi (>=0.115.8,<0.116.0)",
+    "paddleocr (>=2.9.1,<3.0.0)",
+    "paddlepaddle (>=2.6.2,<3.0.0)",
+    "aiomysql (>=0.2.0,<0.3.0)",
+    "aiosqlite (>=0.21.0,<0.22.0)",
+    "aisqlite (>=1.1.0,<2.0.0)",
+    "openai (>=1.64.0,<2.0.0)",
+    "torch (>=2.6.0,<3.0.0)",
+    "torchvision (>=0.21.0,<0.22.0)",
+    "pymupdf (>=1.25.3,<2.0.0)",
+    "python-jose[cryptography] (>=3.4.0,<4.0.0)",
+    "pymysql (>=1.1.1,<2.0.0)",
+    "pydantic (>=2.10.6,<3.0.0)",
+    "bcrypt (>=4.2.1,<5.0.0)",
+    "uvicorn (>=0.34.0,<0.35.0)",
+    "python-dotenv (>=1.0.1,<2.0.0)",
+    "sqlalchemy (>=2.0.38,<3.0.0)",
+    "pillow (>=11.1.0,<12.0.0)",
+    "passlib (>=1.7.4,<2.0.0)",
+    "python-multipart (>=0.0.20,<0.0.21)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
