@@ -15,6 +15,188 @@ from services.processing_services import process_invoices_background,process_sin
 router=APIRouter()
 
 @router.post("/process-invoices")   
+# async def process_invoices(
+#     background_tasks: BackgroundTasks,
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     try:
+#         # Get all image paths for the user
+#         user_image_dir = os.path.join(PDF_IMAGE_DIR, current_user.unique_id)
+#         if not os.path.exists(user_image_dir):
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No images found for processing"
+#             )
+
+#         # Get all PDF files for the user
+#         pdf_files = db.query(PDFFile).filter(
+#             PDFFile.user_id == current_user.unique_id
+#         ).all()
+
+#         if not pdf_files:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No PDF files found"
+#             )
+
+#         # Get PDF file IDs
+#         pdf_file_ids = [pdf.id for pdf in pdf_files]
+
+#         # Get all relevant image paths
+#         image_paths = [
+#             os.path.join(user_image_dir, f) 
+#             for f in os.listdir(user_image_dir) 
+#             if f.endswith('.jpg')
+#         ]
+#         extracted_text=extract_text_from_images(image_paths)
+
+#         if not image_paths:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No images found for processing"
+#             )
+
+#         # Create processing status record
+#         processing_status = ProcessingStatus(
+#             user_id=current_user.unique_id,
+#             total_images=len(image_paths),
+#             status='processing'
+#         )
+#         db.add(processing_status)
+#         db.commit()
+#         db.refresh(processing_status)
+
+#         # Start background processing
+#         background_tasks.add_task(
+#             process_invoices_background,
+#             current_user.unique_id,
+#             extracted_text,
+#             pdf_file_ids,#changed from pdf_files_ids
+#             processing_status.id
+#         )
+
+#         return {
+#             "status": "processing_started",
+#             "message": "Invoice processing started in background",
+#             "total_images": len(image_paths),
+#             "processing_id": processing_status.id
+#         }
+
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Error starting invoice processing: {str(e)}"
+#         )
+ 
+# async def process_invoices(
+#     background_tasks: BackgroundTasks,
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     try:
+#         # Get all image paths for the user
+#         user_image_dir = os.path.join(PDF_IMAGE_DIR, current_user.unique_id)
+#         if not os.path.exists(user_image_dir):
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No images found for processing"
+#             )
+
+#         # Get all PDF files for the user
+#         pdf_files = db.query(PDFFile).filter(
+#             PDFFile.user_id == current_user.unique_id
+#         ).all()
+
+#         if not pdf_files:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No PDF files found"
+#             )
+
+#         # Get PDF file IDs
+#         pdf_file_ids = [pdf.id for pdf in pdf_files]
+
+#         # Debugging: Verify InvoiceDB table query
+#         try:
+#             processed_pdf_ids=db.query(InvoiceDB.pdf_file_id).filter(
+#                 InvoiceDB.pdf_file_id.in_(pdf_file_ids)
+#             ).distinct().all()
+#             processed_pdf_ids={row[0] for row in processed_pdf_ids if row[0] is not None} 
+#         except Exception as query_error:
+#             raise HTTPException(
+#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#                 detail=f"Error querying invoices table: {str(query_error)}"
+#             )
+#         unprocessed_pdf_files=[pdf for pdf in pdf_files if pdf.id not in processed_pdf_ids]
+
+#         if not unprocessed_pdf_files:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No new PDF files found for processing (all already processed)"
+#             )
+
+#         # Create mapping of PDF filename to ID
+#         pdf_filename_to_id = {pdf.filename: pdf.id for pdf in pdf_files}
+
+#         # Get all relevant image paths and filter for unprocessed PDFs only
+#         image_paths=[
+#             os.path.join(user_image_dir, f)
+#             for f in os.listdir(user_image_dir)
+#             if f.endswith('.jpg')
+#         ]
+
+#         filtered_image_paths = []
+#         for image_path in image_paths:
+#             filename = os.path.basename(image_path)
+#             base_filename = "_".join(filename.split("_")[:-2]) + ".pdf"  
+#             pdf_id = pdf_filename_to_id.get(base_filename)
+
+#             if pdf_id and pdf_id not in processed_pdf_ids:
+#                 filtered_image_paths.append(image_path)
+
+#         if not filtered_image_paths:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="No new images found for processing (all PDFs already processed)"
+#             )
+
+#         extracted_text=extract_text_from_images(filtered_image_paths)
+
+#         unprocessed_pdf_file_ids=[pdf.id for pdf in unprocessed_pdf_files]
+
+#         # Create processing status record
+#         processing_status = ProcessingStatus(
+#             user_id=current_user.unique_id,
+#             total_images=len(filtered_image_paths),
+#             status='processing'
+#         )
+#         db.add(processing_status)
+#         db.commit()
+#         db.refresh(processing_status)
+
+#         # Start background processing with filtered data
+#         background_tasks.add_task(
+#             process_invoices_background,
+#             current_user.unique_id,
+#             extracted_text,
+#             unprocessed_pdf_file_ids,
+#             processing_status.id
+#         )
+
+#         return {
+#             "status": "processing_started",
+#             "message": "Invoice processing started in background for new PDFs",
+#             "total_images": len(filtered_image_paths),
+#             "processing_id": processing_status.id
+#         }
+
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Error starting invoice processing: {str(e)}"
+#         )
+
 async def process_invoices(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
@@ -43,43 +225,85 @@ async def process_invoices(
         # Get PDF file IDs
         pdf_file_ids = [pdf.id for pdf in pdf_files]
 
-        # Get all relevant image paths
-        image_paths = [
-            os.path.join(user_image_dir, f) 
-            for f in os.listdir(user_image_dir) 
-            if f.endswith('.jpg')
-        ]
-        extracted_text=extract_text_from_images(image_paths)
+        # Debugging: Verify InvoiceDB table query
+        try:
+            processed_pdf_ids = db.query(InvoiceDB.pdf_file_id).filter(
+                InvoiceDB.pdf_file_id.in_(pdf_file_ids)
+            ).distinct().all()
+            processed_pdf_ids = {row[0] for row in processed_pdf_ids if row[0] is not None}  # Handle NULL values
+        except Exception as query_error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error querying invoices table: {str(query_error)}"
+            )
 
-        if not image_paths:
+        # Filter out PDFs that are already processed
+        unprocessed_pdf_files = [
+            pdf for pdf in pdf_files if pdf.id not in processed_pdf_ids
+        ]
+
+        if not unprocessed_pdf_files:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No images found for processing"
+                detail="No new PDF files found for processing (all already processed)"
             )
+
+        # Create mapping of PDF filename to ID
+        pdf_filename_to_id = {pdf.filename: pdf.id for pdf in pdf_files}
+
+        # Get all relevant image paths and filter for unprocessed PDFs only
+        image_paths = [
+            os.path.join(user_image_dir, f)
+            for f in os.listdir(user_image_dir)
+            if f.endswith('.jpg')
+        ]
+
+        filtered_image_paths = []
+        for image_path in image_paths:
+            # Extract base filename from image (e.g., "invoice1_page_1.jpg" -> "invoice1.pdf")
+            filename = os.path.basename(image_path)
+            base_filename = "_".join(filename.split("_")[:-2]) + ".pdf"  # Assuming PDF extension
+            pdf_id = pdf_filename_to_id.get(base_filename)
+            
+            # Include only if PDF is unprocessed
+            if pdf_id and pdf_id not in processed_pdf_ids:
+                filtered_image_paths.append(image_path)
+
+        if not filtered_image_paths:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No new images found for processing (all PDFs already processed)"
+            )
+
+        # Extract text from filtered images
+        extracted_text = extract_text_from_images(filtered_image_paths)
+
+        # Get IDs of unprocessed PDFs
+        unprocessed_pdf_file_ids = [pdf.id for pdf in unprocessed_pdf_files]
 
         # Create processing status record
         processing_status = ProcessingStatus(
             user_id=current_user.unique_id,
-            total_images=len(image_paths),
+            total_images=len(filtered_image_paths),
             status='processing'
         )
         db.add(processing_status)
         db.commit()
         db.refresh(processing_status)
 
-        # Start background processing
+        # Start background processing with filtered data
         background_tasks.add_task(
             process_invoices_background,
             current_user.unique_id,
             extracted_text,
-            pdf_file_ids,#changed from pdf_files_ids
+            unprocessed_pdf_file_ids,
             processing_status.id
         )
 
         return {
             "status": "processing_started",
-            "message": "Invoice processing started in background",
-            "total_images": len(image_paths),
+            "message": "Invoice processing started in background for new PDFs",
+            "total_images": len(filtered_image_paths),
             "processing_id": processing_status.id
         }
 
@@ -88,7 +312,8 @@ async def process_invoices(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error starting invoice processing: {str(e)}"
         )
- 
+
+
 @router.get("/processing-status/{processing_id}")
 async def get_processing_status(
     processing_id: int,

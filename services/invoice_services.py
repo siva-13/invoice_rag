@@ -10,8 +10,8 @@ from database.database import SessionLocal, get_db
 from fastapi import BackgroundTasks, Depends, HTTPException, Query,status
 from database.models import PDFFile, User
 from database.models import InvoiceDB, InvoiceItemDB, ProcessingStatus,QueryRequest
-from services.pdf_services import process_single_image
-from invoice_rag.services.processing_services import format_processing_job
+#from services.pdf_services import process_single_image
+from services.processing_services import format_processing_job
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from services.auth import get_current_user

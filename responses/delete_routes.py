@@ -35,10 +35,17 @@ def delete_all_in_directory(directory):
 async def delete_table(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         database.models.Base.metadata.drop_all(bind=engine)
-        #Base.metadata.create_all(bind=engine)
+        
+        # Check if tables were dropped successfully
+        remaining_tables = database.inspect(engine).get_table_names()
+        if remaining_tables:
+            return {"status": "warning", "message": f"Some tables were not deleted: {remaining_tables}"}
+
         delete_all_in_directory(UPLOAD_DIR)
         delete_all_in_directory(PDF_IMAGE_DIR)
-        return {"status": "success", "message": "Tables dropped successfully"}
+        
+        return {"status": "success", "message": "Tables and directories cleaned successfully"}
+    
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

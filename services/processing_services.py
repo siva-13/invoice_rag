@@ -1,3 +1,5 @@
+import os
+import shutil
 from sqlalchemy.orm import Session
 from database.models import Invoice, InvoiceDB, InvoiceItemDB, PDFFile, ProcessingStatus, User
 from typing import Optional
@@ -5,7 +7,7 @@ from fastapi import HTTPException,status,Depends
 from database.database import get_db
 from services.auth import get_current_user
 from database.database import SessionLocal
-from config import API_SEMAPHORE,client
+from config import API_SEMAPHORE,client,PDF_IMAGE_DIR,UPLOAD_DIR
 import asyncio
 from datetime import datetime
 
@@ -161,28 +163,74 @@ async def process_invoices_background(
     """Background task to process invoices with extracted text."""
     db = SessionLocal()
     try:
-        batch_size = 5
+        if not pdf_file_ids:
+            raise ValueError("No PDF file IDs provided")
+        
+        # Assume all images belong to the first PDF (single PDF with multiple pages)
+        pdf_file_id = pdf_file_ids[0]  # Single PDF ID for all images
+        pdf_file = db.query(PDFFile).filter(PDFFile.id == pdf_file_id).first()
+        if not pdf_file:
+            raise ValueError(f"PDF file with ID {pdf_file_id} not found")
+        
+        user_img_dir=os.path.join(PDF_IMAGE_DIR,user_id)
+        user_pdf_dir=os.path.join(UPLOAD_DIR,user_id)
 
+        processed_img_dir=os.path.join(user_img_dir,"processed_images")
+        processed_pdfs_dir=os.path.join(user_pdf_dir,"processed_pdfs")
+        os.makedirs(processed_img_dir,exist_ok=True)
+        os.makedirs(processed_pdfs_dir,exist_ok=True)
+
+        image_path=[
+            os.path.join(user_img_dir,f)
+            for f in os.listdir(user_img_dir)
+            if f.endswith('.jpg') and pdf_file.filename.split('.')[0] in f
+        ]
+
+        batch_size = 5
+        processed_image_paths=[]
+
+        # Process all extracted texts with the same pdf_file_id
         for i in range(0, len(extracted_texts), batch_size):
             batch_texts = extracted_texts[i:i + batch_size]
-            batch_ids = pdf_file_ids[i:i + batch_size]
-            pdf_files = db.query(PDFFile).filter(PDFFile.id.in_(batch_ids)).all()
-
+            batch_image_paths=image_path[i:i+batch_size]
+            
             tasks = []
-            for pdf_file, text in zip(pdf_files, batch_texts):
-                # Directly call the async function and append the coroutine
+            for text, image_path in zip(batch_texts, batch_image_paths):
                 task = process_single_image(
                     text,
                     pdf_file.id,
                     user_id,
                     processing_status_id
                 )
-                tasks.append(task)
+                tasks.append((task, image_path))
 
             # Await all tasks in the batch
-            await asyncio.gather(*tasks, return_exceptions=True)
+            results=await asyncio.gather(*[t[0] for t in tasks], return_exceptions=True)
+            for j, (result, image_path) in enumerate(zip(results, [t[1] for t in tasks])):
+                if not isinstance(result, Exception) and result is not None:  # Successfully processed
+                    new_image_path = os.path.join(processed_img_dir, os.path.basename(image_path))
+                    if os.path.exists(image_path) and not os.path.exists(new_image_path):
+                        shutil.move(image_path, new_image_path)
+                        processed_image_paths.append(new_image_path)
+                    print(f"Successfully processed and moved image {i+j}: {new_image_path}")
+                else:
+                    print(f"Failed to process image {i+j}: {str(result)}")
+
             await asyncio.sleep(0.1)  # Small delay between batches
 
+        # Move the PDF file if all images were processed successfully
+        if len(processed_image_paths) == len(extracted_texts):  
+            old_pdf_path = os.path.join(user_pdf_dir, os.path.basename(pdf_file.file_path))
+            new_pdf_path = os.path.join(processed_pdfs_dir, os.path.basename(pdf_file.file_path))
+            if os.path.exists(old_pdf_path) and not os.path.exists(new_pdf_path):
+                shutil.move(old_pdf_path, new_pdf_path)
+                pdf_file.file_path = new_pdf_path  
+                db.commit()
+                print(f"Moved PDF to {new_pdf_path}")
+            else:
+                print(f"PDF move skipped: {old_pdf_path} to {new_pdf_path}")
+
+        # Update status to completed
         status = db.query(ProcessingStatus).get(processing_status_id)
         if status:
             status.status = 'completed'
@@ -199,8 +247,6 @@ async def process_invoices_background(
             db.commit()
     finally:
         db.close()
-
-
 
 
 

@@ -54,19 +54,27 @@ class GPUPDFProcessor:
             print(f"Error converting PDF {filename}: {str(e)}")
             return []
 
-    def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
-        """Process a batch of images using GPU, but retain their original appearance."""
-        # Convert images to tensors and move to GPU without altering appearance
-        tensors = [self.transform(img) for img in images]
-        batch = torch.stack(tensors).to(self.device)
+    # def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
+    #     """Process a batch of images using GPU, but retain their original appearance."""
+    #     # Convert images to tensors and move to GPU without altering appearance
+    #     tensors = [self.transform(img) for img in images]
+    #     batch = torch.stack(tensors).to(self.device)
 
-        # No processing like contrast enhancement, just convert back to CPU and PIL Images
-        batch = batch.cpu()
-        processed_images = [
-            transforms.ToPILImage()(img)
-            for img in batch
-        ]
+    #     # No processing like contrast enhancement, just convert back to CPU and PIL Images
+    #     batch = batch.cpu()
+    #     processed_images = [
+    #         transforms.ToPILImage()(img)
+    #         for img in batch
+    #     ]
        
+    #     return processed_images
+
+    def process_image_batch_gpu(self, images: List[Image.Image]) -> List[Image.Image]:
+        processed_images = []
+        for img in images:
+            tensor = self.transform(img).to(self.device)
+            tensor = tensor.cpu()
+            processed_images.append(transforms.ToPILImage()(tensor))
         return processed_images
 
     # def _convert_single_pdf(self, pdf_path: str, output_dir: str, filename: str) -> List[str]:
