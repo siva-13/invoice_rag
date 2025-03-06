@@ -162,6 +162,7 @@ async def upload_pdfs(
 
 
 
+
 # Get user's PDF files
 @router.get("/my-pdfs")
 async def get_user_pdfs(
@@ -188,8 +189,98 @@ async def get_user_pdfs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving PDF files: {str(e)}"
         )
+
 @router.get("/convert-pdfs-to-images-gpu")
-# async def convert_pdfs_to_images_gpu(
+async def convert_pdfs_to_images_gpu(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's PDFs that haven't been processed yet
+        # (files not in processed_pdfs folder)
+        pdf_files = db.query(PDFFile).filter(
+            PDFFile.user_id == current_user.unique_id,
+            ~PDFFile.file_path.like("%/processed_pdfs/%")  # Exclude files in processed_pdfs folder
+        ).all()
+        
+        if not pdf_files:
+            return {
+                "status": "error",
+                "message": "No unprocessed PDFs found for conversion"
+            }
+        
+        # Prepare PDF info
+        pdf_info = [
+            {
+                'file_path': pdf.file_path,
+                'filename': pdf.filename
+            }
+            for pdf in pdf_files
+        ]
+        
+        # Process PDFs with GPU acceleration
+        start_time = time.time()
+        conversion_results = await gpu_conversion_manager.process_pdf_batch(
+            pdf_info,
+            current_user.unique_id
+        )
+        end_time = time.time()
+        
+        successful_conversions = [
+            result for result in conversion_results
+            if result['status'] == 'success'
+        ]
+        
+        total_pages = sum(
+            result['pages_converted']
+            for result in successful_conversions
+        )
+        
+        # Move successfully converted PDFs to processed_pdfs folder
+        for result in successful_conversions:
+            try:
+                # Find the corresponding pdf_file by filename
+                pdf_name = result['pdf_name']
+                pdf_file = next((pdf for pdf in pdf_files if pdf.filename == pdf_name), None)
+                
+                if pdf_file:
+                    source_path = pdf_file.file_path
+                    # Get the user directory path
+                    user_dir = os.path.dirname(source_path)
+                    # Create the processed_pdfs directory if it doesn't exist
+                    processed_dir = os.path.join(user_dir, "processed_pdfs")
+                    os.makedirs(processed_dir, exist_ok=True)
+                    
+                    # Move the file to the processed_pdfs directory
+                    destination_path = os.path.join(processed_dir, os.path.basename(source_path))
+                    shutil.move(source_path, destination_path)
+                    
+                    # Update the file path in the database
+                    pdf_file.file_path = destination_path
+                    db.commit()
+                    
+                    # Add the new path to the result
+                    result['moved_to'] = destination_path
+                else:
+                    result['move_status'] = "PDF file not found in database"
+            except Exception as move_error:
+                result['move_status'] = f"Failed to move: {str(move_error)}"
+        
+        return {
+            "status": "success",
+            "message": f"Converted {len(successful_conversions)} out of {len(pdf_files)} PDFs",
+            "total_pages_converted": total_pages,
+            "processing_time": f"{end_time - start_time:.2f} seconds",
+            "processing_device": str(DEVICE),
+            "results": conversion_results
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during GPU-accelerated PDF conversion: {str(e)}"
+        )  
+    # async def convert_pdfs_to_images_gpu(
 #     current_user: User = Depends(get_current_user),
 #     db: Session = Depends(get_db)
 # ):
@@ -247,10 +338,10 @@ async def get_user_pdfs(
 #             detail=f"Error during GPU-accelerated PDF conversion: {str(e)}"
 #         )
 
-# async def convert_pdfs_to_images_gpu(
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
+# # async def convert_pdfs_to_images_gpu(
+# #     current_user: User = Depends(get_current_user),
+# #     db: Session = Depends(get_db)
+# # ):
 #     try:
 #         # Get user's PDFs
 #         pdf_files = db.query(PDFFile).filter(
@@ -326,78 +417,78 @@ async def get_user_pdfs(
 #         )
 
 
-async def convert_pdfs_to_images_gpu(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        # Get user's PDFs
-        pdf_files = db.query(PDFFile).filter(
-            PDFFile.user_id == current_user.unique_id
-        ).all()
+# async def convert_pdfs_to_images_gpu(
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     try:
+#         # Get user's PDFs
+#         pdf_files = db.query(PDFFile).filter(
+#             PDFFile.user_id == current_user.unique_id
+#         ).all()
        
-        if not pdf_files:
-            return {
-                "status": "error",
-                "message": "No PDFs found for conversion"
-            }
+#         if not pdf_files:
+#             return {
+#                 "status": "error",
+#                 "message": "No PDFs found for conversion"
+#             }
        
-        # Prepare PDF info and track skipped files
-        user_image_dir = os.path.join(PDF_IMAGE_DIR, current_user.unique_id)
-        pdf_info = []
-        skipped_pdfs = []
+#         # Prepare PDF info and track skipped files
+#         user_image_dir = os.path.join(PDF_IMAGE_DIR, current_user.unique_id)
+#         pdf_info = []
+#         skipped_pdfs = []
         
-        for pdf in pdf_files:
-            base_filename = os.path.splitext(pdf.filename)[0]
-            expected_image_path = os.path.join(user_image_dir, f"{base_filename}_page_1.jpg")
+#         for pdf in pdf_files:
+#             base_filename = os.path.splitext(pdf.filename)[0]
+#             expected_image_path = os.path.join(user_image_dir, f"{base_filename}_page_1.jpg")
 
-            # Skip if first-page image already exists
-            if os.path.exists(expected_image_path):
-                skipped_pdfs.append(pdf.filename)
-                continue
+#             # Skip if first-page image already exists
+#             if os.path.exists(expected_image_path):
+#                 skipped_pdfs.append(pdf.filename)
+#                 continue
                 
-            pdf_info.append({
-                'file_path': pdf.file_path,
-                'filename': pdf.filename
-            })
+#             pdf_info.append({
+#                 'file_path': pdf.file_path,
+#                 'filename': pdf.filename
+#             })
        
-        if not pdf_info:
-            return {
-                "status": "success",
-                "message": "All PDFs have already been processed.",
-                "skipped_pdfs": skipped_pdfs
-            }
+#         if not pdf_info:
+#             return {
+#                 "status": "success",
+#                 "message": "All PDFs have already been processed.",
+#                 "skipped_pdfs": skipped_pdfs
+#             }
        
-        # Process PDFs with GPU acceleration
-        start_time = time.time()
-        conversion_results = await gpu_conversion_manager.process_pdf_batch(
-            pdf_info,
-            current_user.unique_id
-        )
-        end_time = time.time()
+#         # Process PDFs with GPU acceleration
+#         start_time = time.time()
+#         conversion_results = await gpu_conversion_manager.process_pdf_batch(
+#             pdf_info,
+#             current_user.unique_id
+#         )
+#         end_time = time.time()
        
-        successful_conversions = [
-            result for result in conversion_results
-            if result['status'] == 'success'
-        ]
+#         successful_conversions = [
+#             result for result in conversion_results
+#             if result['status'] == 'success'
+#         ]
        
-        total_pages = sum(
-            result['pages_converted']
-            for result in successful_conversions
-        )
+#         total_pages = sum(
+#             result['pages_converted']
+#             for result in successful_conversions
+#         )
        
-        return {
-            "status": "success",
-            "message": f"Converted {len(successful_conversions)} out of {len(pdf_info)} new PDFs",
-            "total_pages_converted": total_pages,
-            "processing_time": f"{end_time - start_time:.2f} seconds",
-            "processing_device": str(DEVICE),
-            "results": conversion_results,
-            "skipped_pdfs": skipped_pdfs
-        }
+#         return {
+#             "status": "success",
+#             "message": f"Converted {len(successful_conversions)} out of {len(pdf_info)} new PDFs",
+#             "total_pages_converted": total_pages,
+#             "processing_time": f"{end_time - start_time:.2f} seconds",
+#             "processing_device": str(DEVICE),
+#             "results": conversion_results,
+#             "skipped_pdfs": skipped_pdfs
+#         }
        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error during GPU-accelerated PDF conversion: {str(e)}"
-        )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Error during GPU-accelerated PDF conversion: {str(e)}"
+#         )

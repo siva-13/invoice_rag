@@ -49,7 +49,7 @@ async def process_single_image(extracted_text: str,pdf_file_id: int,user_id:int,
                 # )
 
                 # Call OpenAI API with timeout
-                print(extracted_text)
+                # print(extracted_text)/
                 if not isinstance(extracted_text, str):
                     extracted_text = str(extracted_text)
                 response = await asyncio.wait_for(
@@ -156,7 +156,7 @@ async def process_single_image(extracted_text: str,pdf_file_id: int,user_id:int,
 
 async def process_invoices_background(
     user_id: str,
-    extracted_texts: list,
+    extracted_texts: dict,  # Changed type hint to dict
     pdf_file_ids: list,
     processing_status_id: int
 ):
@@ -172,59 +172,74 @@ async def process_invoices_background(
         if not pdf_file:
             raise ValueError(f"PDF file with ID {pdf_file_id} not found")
         
-        user_img_dir=os.path.join(PDF_IMAGE_DIR,user_id)
-        user_pdf_dir=os.path.join(UPLOAD_DIR,user_id)
+        user_img_dir = os.path.join(PDF_IMAGE_DIR, user_id)
+        user_pdf_dir = os.path.join(UPLOAD_DIR, user_id)
 
-        processed_img_dir=os.path.join(user_img_dir,"processed_images")
-        processed_pdfs_dir=os.path.join(user_pdf_dir,"processed_pdfs")
-        os.makedirs(processed_img_dir,exist_ok=True)
-        os.makedirs(processed_pdfs_dir,exist_ok=True)
+        processed_img_dir = os.path.join(user_img_dir, "processed_images")
+        processed_pdfs_dir = os.path.join(user_pdf_dir, "processed_pdfs")
+        os.makedirs(processed_img_dir, exist_ok=True)
+        os.makedirs(processed_pdfs_dir, exist_ok=True)
 
-        image_path=[
-            os.path.join(user_img_dir,f)
+        # Get image paths that match the PDF filename
+        image_paths = [
+            os.path.join(user_img_dir, f)
             for f in os.listdir(user_img_dir)
             if f.endswith('.jpg') and pdf_file.filename.split('.')[0] in f
         ]
 
-        batch_size = 5
-        processed_image_paths=[]
-
-        # Process all extracted texts with the same pdf_file_id
-        for i in range(0, len(extracted_texts), batch_size):
-            batch_texts = extracted_texts[i:i + batch_size]
-            batch_image_paths=image_path[i:i+batch_size]
+        successful_tasks = 0
+        
+        # Process each text from the dictionary
+        for img_path, text in extracted_texts.items():
+            # Find the corresponding full path in image_paths
+            # This assumes the img_path key in extracted_texts is the basename
+            img_basename = os.path.basename(img_path)
+            full_img_path = None
             
-            tasks = []
-            for text, image_path in zip(batch_texts, batch_image_paths):
-                task = process_single_image(
+            for path in image_paths:
+                if os.path.basename(path) == img_basename:
+                    full_img_path = path
+                    break
+            
+            if not full_img_path:
+                print(f"Warning: Could not find matching image path for {img_path}")
+                continue
+                
+            try:
+                result = await process_single_image(
                     text,
                     pdf_file.id,
                     user_id,
                     processing_status_id
                 )
-                tasks.append((task, image_path))
-
-            # Await all tasks in the batch
-            results=await asyncio.gather(*[t[0] for t in tasks], return_exceptions=True)
-            for j, (result, image_path) in enumerate(zip(results, [t[1] for t in tasks])):
-                if not isinstance(result, Exception) and result is not None:  # Successfully processed
-                    new_image_path = os.path.join(processed_img_dir, os.path.basename(image_path))
-                    if os.path.exists(image_path) and not os.path.exists(new_image_path):
-                        shutil.move(image_path, new_image_path)
-                        processed_image_paths.append(new_image_path)
-                    print(f"Successfully processed and moved image {i+j}: {new_image_path}")
+                
+                if result is not None:
+                    successful_tasks += 1
+                    print(f"Successfully processed image {img_path}")
                 else:
-                    print(f"Failed to process image {i+j}: {str(result)}")
+                    print(f"Failed to process image {img_path}: No result")
+            except Exception as e:
+                print(f"Failed to process image {img_path}: {str(e)}")
+            
+            # Small delay between processing
+            await asyncio.sleep(0.05)
 
-            await asyncio.sleep(0.1)  # Small delay between batches
+        # Move all images to processed_images directory after processing
+        for image_path in image_paths:
+            new_image_path = os.path.join(processed_img_dir, os.path.basename(image_path))
+            if os.path.exists(image_path) and not os.path.exists(new_image_path):
+                shutil.move(image_path, new_image_path)
+                print(f"Moved image to {new_image_path}")
+            else:
+                print(f"Image move skipped: {image_path} to {new_image_path}")
 
-        # Move the PDF file if all images were processed successfully
-        if len(processed_image_paths) == len(extracted_texts):  
+        # Move the PDF file only if there were successful tasks
+        if successful_tasks > 0:  
             old_pdf_path = os.path.join(user_pdf_dir, os.path.basename(pdf_file.file_path))
             new_pdf_path = os.path.join(processed_pdfs_dir, os.path.basename(pdf_file.file_path))
             if os.path.exists(old_pdf_path) and not os.path.exists(new_pdf_path):
                 shutil.move(old_pdf_path, new_pdf_path)
-                pdf_file.file_path = new_pdf_path  
+                pdf_file.file_path = new_pdf_path   
                 db.commit()
                 print(f"Moved PDF to {new_pdf_path}")
             else:
@@ -239,6 +254,7 @@ async def process_invoices_background(
 
     except Exception as e:
         print(f"Background processing error: {str(e)}")
+        # traceback.print_exc()s  # Print the full traceback for debugging
         status = db.query(ProcessingStatus).get(processing_status_id)
         if status:
             status.status = 'failed'
@@ -247,8 +263,3 @@ async def process_invoices_background(
             db.commit()
     finally:
         db.close()
-
-
-
-
-

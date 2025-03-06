@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 # MySQL connection URL with pymysql
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:Test123!@localhost:3306/invoice"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./database/users.db"
 
 # Create engine for synchronous connection
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_size=10, max_overflow=20)
